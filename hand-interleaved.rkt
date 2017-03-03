@@ -2,13 +2,15 @@
 
 (require
   "dkanren/dkanren.rkt"
+  racket/pretty
+  "dkanren-test.rkt" 
   )
 
 (module+ test
   (require
     rackunit
     racket/pretty
-    "dkanren-test.rkt"
+    "dkanren-test.rkt"    
     ))
 
 
@@ -52,7 +54,7 @@
           (let ((free? (lambda (sym) (not (in-env? sym env))))
                 (bound? (lambda (sym) (in-env? sym env)))
                 (bound-if-sym? (lambda (sym) (or (not (symbol? sym)) (in-env? sym env)))))
-            (match/lazy (list expr type EI)
+            (match (list expr type EI) ;; was match/lazy
               ; ref
               (`(,(? bound?) ,_ ,_)
                 (match (lookupc expr env)
@@ -208,43 +210,64 @@
         type)
       ...))
 
+
+
+
+
+
+
+
 ; Synthesis and performance tests of hand interleaved version
 (module+ test
-  (time (test "list_hd"
-          (run 1 (q)
-               (synthesizec list_hd (lambda (l) : ((list) -> number)
-                                      ,q)
-                            [(list_hd '()) Z]
-                            [(list_hd (cons Z '())) Z]
-                            [(list_hd (cons (S Z) '())) (S Z)]))
-          '(((match l ('() Z) ((cons _.0 _.1) _.0))))))
 
-  #;(time (test "list_tl"
-        (let ([example (lambda (q l out)
-                         (evalo
-                           `(letrec ([list_tl (lambda (l) : ((list) -> list)
-                                                ,q)])
-                              (list_tl ,l))
-                           out))])
-          (run 1 (q)
-               (example q ''() '())
-               (example q '(cons Z '()) '())
-               (example q '(cons Z (cons Z '())) '(Z))
-               ))
-        '(((match l ('() l) ((cons _.0 _.1) _.1)) (=/= ((_.0 _.1))) (sym _.0 _.1)))))
+  (test "list_hd"
+    (time (run 1 (q)
+            (synthesizec list_hd (lambda (l) : ((list) -> number)
+                                         ,q)
+                         [(list_hd '()) Z]
+                         [(list_hd (cons Z '())) Z]
+                         [(list_hd (cons (S Z) '())) (S Z)])))
+    '(((match l ('() Z) ((cons _.0 _.1) _.0)))))
 
-  #;(time (test "list_length"
-        (let ([example (lambda (q l out)
-                         (evalo `(letrec ([list_length (lambda (l) : ((list) -> number)
-                                                         ,q)])
-                                   (list_length ,l))
-                                out))])
-          (run 1 (q)
-               (example q ''() 'Z)
-               (example q '(cons Z '()) '(S Z))
-               (example q '(cons Z (cons Z '())) '(S (S Z)))
-               ))
-        '(((match l ('() Z) ((cons _.0 _.1) (S (list_length _.1)))) (=/= ((_.0 S)) ((_.0 _.1)) ((_.0 list_length)) ((_.1 S)) ((_.1 list_length))) (sym _.0 _.1)))))
+  
+  (test "list_tl"
+    (time (run 1 (q)            
+            (synthesizec list_tl (lambda (l) : ((list) -> list)
+                                         ,q)
+                         [(list_tl '()) ()]
+                         [(list_tl (cons Z '())) ()]
+                         [(list_tl (cons Z (cons Z '()))) (Z)])))           
+    '(((match l ('() l) ((cons _.0 _.1) _.1)))))
+
+
+  (test "list_length"
+    (time (run 1 (q)
+            (synthesizec list_length (lambda (l) : ((list) -> number)
+                                         ,q)
+                         [(list_length '()) Z]
+                         [(list_length (cons Z '())) (S Z)]
+                         [(list_length (cons Z (cons Z '()))) (S (S Z))])))    
+        '(((match l ('() Z) ((cons _.0 _.1) (S (list_length _.1)))))))
+
+
+  (test "nat_iseven"
+    (time (run 1 (q)
+            (synthesizec nat_iseven (lambda (n) : ((number) -> number)
+                                             ,q)
+                         [(nat_iseven Z) (S Z)]
+                         [(nat_iseven (S Z)) Z]
+                         [(nat_iseven (S (S Z))) (S Z)]
+                         [(nat_iseven (S (S (S Z)))) Z]
+                         [(nat_iseven (S (S (S (S Z))))) (S Z)])))
+    '(((match n
+         (Z (S n))
+         ((S _.0)
+          (match _.0
+            (Z _.0)
+            ((S _.1) (nat_iseven _.1))))))))
+
+
+  
 
   #;(test "list append check"
     (run 1 (q)
