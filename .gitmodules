@@ -1,0 +1,6 @@
+[submodule "dkanren"]
+	path = dkanren
+	url = https://github.com/gregr/dKanren.git
+[submodule "mk"]
+	path = mk
+	url = https://github.com/michaelballantyne/faster-miniKanren.git
